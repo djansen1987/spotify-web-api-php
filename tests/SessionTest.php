@@ -240,11 +240,13 @@ class SessionTest extends PHPUnit\Framework\TestCase
     {
         $authorizationCode = 'd1e893a80f79d9ab5e7d322ed922da540964a63c';
         $expected = [
-            'client_id' => $this->clientID,
-            'client_secret' => $this->clientSecret,
             'code' => $authorizationCode,
             'grant_type' => 'authorization_code',
             'redirect_uri' => $this->redirectURI,
+        ];
+
+        $headers = [
+            'Authorization' => 'Basic Yjc3NzI5MmFmMGRlZjIyZjkyNTc5OTFmYzc3MGI1MjA6NmEwNDE5ZjQzZDBhYTkzYjJhZTg4MTQyOWI2YjliYzI=',
         ];
 
         $return = [
@@ -255,7 +257,7 @@ class SessionTest extends PHPUnit\Framework\TestCase
             'POST',
             '/api/token',
             $expected,
-            [],
+            $headers,
             $return
         );
 

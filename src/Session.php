@@ -34,6 +34,30 @@ class Session
     }
 
     /**
+     * Send a request for an access token to the Spotify Accounts Service.
+     *
+     * @param array $parameters Parameters for the access token request.
+     *
+     * @return object The access token response.
+     */
+    protected function sendTokenRequest($parameters)
+    {
+        $headers = [];
+
+        if ($this->getClientSecret()) {
+            $payload = base64_encode($this->getClientId() . ':' . $this->getClientSecret());
+
+            $headers = [
+                'Authorization' => 'Basic ' . $payload,
+            ];
+        }
+
+        $response = $this->request->account('POST', '/api/token', $parameters, $headers);
+
+        return (object) $response['body'];
+    }
+
+    /**
      * Generate a code challenge from a code verifier for use with the PKCE flow.
      *
      * @param string $codeVerifier The code verifier to create a challenge from.
@@ -190,19 +214,12 @@ class Session
      */
     public function refreshAccessToken($refreshToken = null)
     {
-        $payload = base64_encode($this->getClientId() . ':' . $this->getClientSecret());
-
         $parameters = [
             'grant_type' => 'refresh_token',
             'refresh_token' => $refreshToken ?? $this->refreshToken,
         ];
 
-        $headers = [
-            'Authorization' => 'Basic ' . $payload,
-        ];
-
-        $response = $this->request->account('POST', '/api/token', $parameters, $headers);
-        $response = $response['body'];
+        $response = $this->sendTokenRequest($parameters);
 
         if (isset($response->access_token)) {
             $this->accessToken = $response->access_token;
@@ -232,21 +249,18 @@ class Session
     public function requestAccessToken($authorizationCode, $codeVerifier = '')
     {
         $parameters = [
-            'client_id' => $this->getClientId(),
             'code' => $authorizationCode,
             'grant_type' => 'authorization_code',
             'redirect_uri' => $this->getRedirectUri(),
         ];
 
-        // Send a code verifier when PKCE, client secret otherwise
+        // These fields only need to be sent for PKCE flows
         if ($codeVerifier) {
+            $parameters['client_id'] = $this->getClientId();
             $parameters['code_verifier'] = $codeVerifier;
-        } else {
-            $parameters['client_secret'] = $this->getClientSecret();
         }
 
-        $response = $this->request->account('POST', '/api/token', $parameters, []);
-        $response = $response['body'];
+        $response = $this->sendTokenRequest($parameters);
 
         if (isset($response->refresh_token) && isset($response->access_token)) {
             $this->refreshToken = $response->refresh_token;
@@ -267,18 +281,11 @@ class Session
      */
     public function requestCredentialsToken()
     {
-        $payload = base64_encode($this->getClientId() . ':' . $this->getClientSecret());
-
         $parameters = [
             'grant_type' => 'client_credentials',
         ];
 
-        $headers = [
-            'Authorization' => 'Basic ' . $payload,
-        ];
-
-        $response = $this->request->account('POST', '/api/token', $parameters, $headers);
-        $response = $response['body'];
+        $response = $this->sendTokenRequest($parameters);
 
         if (isset($response->access_token)) {
             $this->accessToken = $response->access_token;
